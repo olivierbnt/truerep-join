@@ -1,0 +1,13 @@
+# Cloudflare Pages headers for the invite site.
+#
+# The AASA file has no extension, so Pages would serve it as text/plain and
+# Apple would REJECT it (universal links silently never activate). This forces
+# the content type Apple requires. Drop this file if the site is ever hosted
+# somewhere that sets JSON automatically.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer

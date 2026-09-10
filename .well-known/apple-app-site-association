@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["ZWDJAT4A86.com.olivierbnt.truerep"],
+        "components": [
+          { "/": "/join*", "comment": "Texted invite links (?u=handle&r=reps)" },
+          { "/": "/j/*", "comment": "Short invite links" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["ZWDJAT4A86.com.olivierbnt.truerep"]
+  }
+}

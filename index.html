@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>You've been challenged on TrueRep</title>
+
+<!-- The link preview in Messages / WhatsApp / Slack. The title and description
+     are rewritten by the script below from ?u= and ?r=, so a shared invite
+     reads as "olivier challenged you — beat 42 push-ups" before it's opened. -->
+<meta name="description" content="Someone challenged you on TrueRep. Think you can beat their push-ups?">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TrueRep">
+<meta property="og:title" content="You've been challenged on TrueRep">
+<meta property="og:description" content="Think you can beat their push-ups?">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#000000">
+
+<style>
+  :root{
+    --accent:#30D158;          /* TrueRep fitness green */
+    --accent-dim:rgba(48,209,88,.14);
+    --text:#ffffff;
+    --muted:rgba(255,255,255,.62);
+    --faint:rgba(255,255,255,.38);
+    --surface:rgba(255,255,255,.06);
+    --surface-line:rgba(255,255,255,.12);
+    --radius:22px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:#000;color:var(--text)}
+  body{
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:28px 20px calc(28px + env(safe-area-inset-bottom));
+    text-align:center;
+  }
+  .glow{
+    position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(680px 380px at 50% -6%, rgba(48,209,88,.18), transparent 70%);
+  }
+  main{position:relative;z-index:1;width:100%;max-width:440px}
+
+  .mark{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12px;font-weight:800;letter-spacing:2.4px;
+    color:var(--accent);margin-bottom:22px;
+  }
+  .mark svg{width:16px;height:16px;display:block}
+
+  .who{font-size:15px;color:var(--muted);margin:0 0 6px}
+  h1{
+    font-size:31px;line-height:1.18;letter-spacing:-.5px;
+    font-weight:800;margin:0 0 12px;word-break:break-word;
+  }
+  h1 .handle{color:var(--accent)}
+  .challenge{
+    font-size:19px;font-weight:600;color:var(--accent);
+    margin:0 0 26px;line-height:1.35;
+  }
+
+  .cta{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;padding:17px 20px;border:0;border-radius:19px;
+    font:600 17px/1 inherit;color:#04140a;background:var(--accent);
+    cursor:pointer;text-decoration:none;
+    box-shadow:0 10px 30px rgba(48,209,88,.22);
+  }
+  .cta:active{transform:translateY(1px)}
+  .cta.secondary{
+    margin-top:12px;color:var(--text);background:var(--surface);
+    border:1px solid var(--surface-line);box-shadow:none;font-weight:600;
+  }
+  .cta svg{width:18px;height:18px;flex:none}
+
+  .note{
+    margin:26px 0 0;font-size:13px;color:var(--faint);line-height:1.5;
+  }
+  .note strong{color:var(--muted);font-weight:600}
+
+  /* Shown only once we know the app didn't take over (no TrueRep installed). */
+  #fallback{margin-top:14px}
+  #fallback[hidden]{display:none}
+  .panel{
+    margin-top:16px;padding:18px;border-radius:var(--radius);
+    background:var(--surface);border:1px solid var(--surface-line);text-align:left;
+  }
+  .panel h2{margin:0 0 6px;font-size:15px;font-weight:700;color:var(--text)}
+  .panel p{margin:0;font-size:13.5px;color:var(--muted)}
+  .steps{margin:12px 0 0;padding-left:18px;font-size:13.5px;color:var(--muted)}
+  .steps li{margin:4px 0}
+  footer{margin-top:30px;font-size:12px;color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<main>
+  <div class="mark">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M13.5 1.5 4 14h6l-1.5 8.5L19 10h-6l.5-8.5z"/>
+    </svg>
+    TRUEREP
+  </div>
+
+  <p class="who" id="who">A friend challenged you</p>
+  <h1 id="headline">You've been challenged</h1>
+  <p class="challenge" id="challenge">Think you can keep up?</p>
+
+  <button class="cta" id="open" type="button">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2zm0 2.2 6.5 3.3L12 10.8 5.5 7.5 12 4.2z"/>
+    </svg>
+    Open in TrueRep
+  </button>
+
+  <!-- Filled in by the script: either a store link or a "not out yet" panel. -->
+  <div id="fallback" hidden></div>
+
+  <p class="note">
+    Don't have the app yet? The button above opens TrueRep if it's installed.
+    <br><strong id="connectNote">You'll be connected automatically once you join.</strong>
+  </p>
+
+  <footer>TrueRep — push-ups, streaks and a league with your friends.</footer>
+</main>
+
+<script>
+(function () {
+  var params  = new URLSearchParams(location.search);
+  var handle  = (params.get('u') || '').replace(/^@+/, '').trim();
+  var repsRaw = params.get('r');
+  var reps    = repsRaw !== null ? parseInt(repsRaw, 10) : null;
+  if (isNaN(reps) || reps <= 0) reps = null;
+
+  /* Where "Get TrueRep" should point. Empty = the app isn't published yet, so
+     the page says so instead of offering a dead download. Set this to the App
+     Store or TestFlight URL the moment one exists. */
+  var STORE_URL = '';
+
+  var who       = handle ? '@' + handle : 'A friend';
+  var challenge = reps ? 'Think you can beat my ' + reps + ' push-ups?'
+                       : 'Think you can keep up?';
+
+  /* ── Populate the page ────────────────────────────────────────────────── */
+  document.getElementById('who').textContent = who + ' challenged you';
+  document.getElementById('headline').innerHTML =
+    'Ready to take on <span class="handle">' + escapeHtml(who) + '</span>?';
+  document.getElementById('challenge').textContent = challenge;
+
+  /* The link preview shown in the text message itself. */
+  document.title = who + ' challenged you on TrueRep';
+  setMeta('description', challenge);
+  setMeta('og:title', who + ' challenged you on TrueRep', 'property');
+  setMeta('og:description', challenge, 'property');
+
+  if (!handle) {
+    document.getElementById('connectNote').textContent =
+      'This invite link is missing its handle — ask your friend to resend it.';
+  }
+
+  /* ── "Open in TrueRep" → the custom URL scheme the app registers ───────── */
+  var scheme = 'truerep://join' + (handle ? '?u=' + encodeURIComponent(handle) +
+              (reps ? '&r=' + reps : '') : '');
+
+  var fallback = document.getElementById('fallback');
+  var openBtn  = document.getElementById('open');
+  var opened   = false;
+
+  /* If the app takes over, the tab is backgrounded/hidden. If nothing happens
+     within ~1.6s we assume the app isn't installed and reveal the next step —
+     this is the whole reason the page exists for people without TrueRep. */
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) opened = true;
+  });
+
+  openBtn.addEventListener('click', function () {
+    opened = false;
+    location.href = scheme;
+    setTimeout(function () {
+      if (!opened && document.visibilityState === 'visible') showFallback();
+    }, 1600);
+  });
+
+  /* Deep-link straight away when the page was opened from a message on a phone
+     that plausibly has the app — this is what makes a texted invite feel native. */
+  var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile && handle) {
+    setTimeout(function () {
+      if (document.visibilityState === 'visible' && !opened) {
+        location.href = scheme;
+        setTimeout(function () {
+          if (!opened && document.visibilityState === 'visible') showFallback();
+        }, 1600);
+      }
+    }, 120);
+  }
+
+  function showFallback() {
+    if (fallback.hidden === false) return;
+    fallback.innerHTML = STORE_URL
+      ? '<a class="cta secondary" href="' + STORE_URL + '">Get TrueRep</a>'
+      : '<div class="panel"><h2>TrueRep isn\'t on the App Store yet</h2>' +
+        '<p>It\'s still in development. When it ships, this exact link will open ' +
+        'the app and connect you to ' + escapeHtml(who) + ' automatically.</p>' +
+        '<ul class="steps"><li>Tell ' + escapeHtml(who) +
+        ' you\'re in — the invite stays valid.</li>' +
+        '<li>Once you install TrueRep, opening this link adds them as a friend.</li></ul></div>';
+    fallback.hidden = false;
+  }
+
+  function setMeta(name, content, attr) {
+    var el = document.querySelector('meta[' + (attr || 'name') + '="' + name + '"]');
+    if (el) el.setAttribute('content', content);
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+})();
+</script>
+</body>
+</html>
