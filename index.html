@@ -6,8 +6,10 @@
 <title>You've been challenged on TrueRep</title>
 
 <!-- The link preview in Messages / WhatsApp / Slack. The title and description
-     are rewritten by the script below from ?u= and ?r=, so a shared invite
-     reads as "olivier challenged you — beat 42 push-ups" before it's opened. -->
+     are rewritten by the script below from the invite params, so a shared
+     invite reads as "Patato challenged you — beat 42 push-ups" once the page is
+     opened. (Messaging apps generate their own preview from this HTML, which is
+     why the static defaults are deliberately generic.) -->
 <meta name="description" content="Someone challenged you on TrueRep. Think you can beat their push-ups?">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="TrueRep">
@@ -19,7 +21,6 @@
 <style>
   :root{
     --accent:#30D158;          /* TrueRep fitness green */
-    --accent-dim:rgba(48,209,88,.14);
     --text:#ffffff;
     --muted:rgba(255,255,255,.62);
     --faint:rgba(255,255,255,.38);
@@ -128,8 +129,10 @@
 
 <script>
 (function () {
-  var params  = new URLSearchParams(location.search);
+  var params = new URLSearchParams(location.search);
   var handle  = (params.get('u') || '').replace(/^@+/, '').trim();
+  var userId  = (params.get('i') || '').trim();
+  var inviter = (params.get('n') || '').trim();   /* display name, id links only */
   var repsRaw = params.get('r');
   var reps    = repsRaw !== null ? parseInt(repsRaw, 10) : null;
   if (isNaN(reps) || reps <= 0) reps = null;
@@ -139,7 +142,11 @@
      Store or TestFlight URL the moment one exists. */
   var STORE_URL = '';
 
-  var who       = handle ? '@' + handle : 'A friend';
+  /* The link identifies the inviter EITHER by @handle (they claimed one) or by
+     their account id (every account has one) — so an invite never depends on
+     the sender having picked a username. */
+  var identified = !!(handle || userId);
+  var who = handle ? '@' + handle : (inviter || 'A friend');
   var challenge = reps ? 'Think you can beat my ' + reps + ' push-ups?'
                        : 'Think you can keep up?';
 
@@ -155,18 +162,25 @@
   setMeta('og:title', who + ' challenged you on TrueRep', 'property');
   setMeta('og:description', challenge, 'property');
 
-  if (!handle) {
-    document.getElementById('connectNote').textContent =
-      'This invite link is missing its handle — ask your friend to resend it.';
-  }
-
-  /* ── "Open in TrueRep" → the custom URL scheme the app registers ───────── */
-  var scheme = 'truerep://join' + (handle ? '?u=' + encodeURIComponent(handle) +
-              (reps ? '&r=' + reps : '') : '');
+  /* ── "Open in TrueRep" → the custom URL scheme the app registers ────────── */
+  var query = [];
+  if (handle) query.push('u=' + encodeURIComponent(handle));
+  if (userId) query.push('i=' + encodeURIComponent(userId));
+  if (inviter) query.push('n=' + encodeURIComponent(inviter));
+  if (reps) query.push('r=' + reps);
+  var scheme = 'truerep://join' + (query.length ? '?' + query.join('&') : '');
 
   var fallback = document.getElementById('fallback');
   var openBtn  = document.getElementById('open');
   var opened   = false;
+
+  if (!identified) {
+    /* A link without u= or i= can't connect anyone — say so rather than
+       pretending, and hide the button that would do nothing. */
+    openBtn.hidden = true;
+    document.getElementById('connectNote').textContent =
+      'This invite link is missing its invite code — ask your friend to resend it.';
+  }
 
   /* If the app takes over, the tab is backgrounded/hidden. If nothing happens
      within ~1.6s we assume the app isn't installed and reveal the next step —
@@ -175,25 +189,22 @@
     if (document.hidden) opened = true;
   });
 
-  openBtn.addEventListener('click', function () {
+  function tryOpen() {
     opened = false;
     location.href = scheme;
     setTimeout(function () {
       if (!opened && document.visibilityState === 'visible') showFallback();
     }, 1600);
-  });
+  }
+
+  openBtn.addEventListener('click', tryOpen);
 
   /* Deep-link straight away when the page was opened from a message on a phone
      that plausibly has the app — this is what makes a texted invite feel native. */
   var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile && handle) {
+  if (isMobile && identified) {
     setTimeout(function () {
-      if (document.visibilityState === 'visible' && !opened) {
-        location.href = scheme;
-        setTimeout(function () {
-          if (!opened && document.visibilityState === 'visible') showFallback();
-        }, 1600);
-      }
+      if (document.visibilityState === 'visible' && !opened) tryOpen();
     }, 120);
   }
 
